@@ -26,7 +26,14 @@ phases.
 
 ## Installation
 
-Simply run the following command in the project's root directory:
+### Prerequisites
+Before installing Mockasite, ensure that you have the `build` package installed. You can install it using pip:
+
+```sh
+pip install build
+```
+
+Then run the following command in the project's root directory to install mockasite:
 ```sh
 make install
 

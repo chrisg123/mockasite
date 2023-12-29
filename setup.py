@@ -11,5 +11,9 @@ setup(
     },
     author='chrisg123',
     description="Record and serve back a mock version of a website.",
-    url="https://github.com/chrisg123/mockasite"
+    url="https://github.com/chrisg123/mockasite",
+    install_requires=[
+        'flask',
+        'mitmproxy'
+    ]
 )
