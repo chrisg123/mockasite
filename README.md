@@ -23,7 +23,15 @@ phases.
   server setup. This is ideal for integrating the mock website into other
   projects or for isolated testing environments.
   
-  
+
+## Installation
+
+Simply run the following command in the project's root directory:
+```sh
+make install
+
+```
+
 ## Usage
 
 - **Capture Mode**: `mockasite --capture`
