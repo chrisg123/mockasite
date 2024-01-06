@@ -41,11 +41,27 @@ make install
 
 ## Usage
 
-- **Capture Mode**: `mockasite --capture`
+- **Capture Mode**: Use `mockasite --capture` to record and serve back a mock
+  version of a website
 
-- **Playback Mode**: `mockasite --playback`
+- **Review Capture**: Use `mockasite --review-capture` to review the last capture.
 
-- **Export Functionality**: `mockasite --export`
+- **Delete Capture**: Use `mockasite --delete-capture` to delete the last capture.
+
+- **Process**: Use `mockasite --process` to process the last capture. This will
+  extract and dump HTTP request and response data into a structured directory
+  format.
+
+- **Review Processed**: Use `mockasite --review-processed` to review processed files.
+
+- **Delete Processed**: Use `mockasite --delete-processed` to delete processed files.
+
+
+- **Playback Mode**: Use `mockasite --playback` to replay processed data as a
+  functioning interactive mock of the original site.
+
+- **Export Functionality**: Use `mockasite --export` to export a standalone server
+  that serves the mock website.
 
 ## Licence
 
