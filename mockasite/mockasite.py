@@ -97,23 +97,28 @@ def delete_last_capture():
 
 def delete_processed_files():
     playback_storage_path = get_playback_storage_path()
-    if not is_directory_empty(playback_storage_path):
+    is_directory_empty = len(os.listdir(playback_storage_path)) == 0
+    if not is_directory_empty:
         try:
             rmtree(playback_storage_path)
             print(f"Delete '{playback_storage_path}'")
         except OSError as e:
             print(f"Error: {e.strerror}")
 
-def is_directory_empty(dir_path):
-    if os.path.exists(dir_path) and os.path.isdir(dir_path):
-        return len(os.listdir(dir_path)) == 0
-    return False
+def is_port_open(host, port):
+    """Check if a port is open on a given host."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(1)  # Timeout for the socket operation
+        try:
+            s.connect((host, port))
+            return True
+        except (socket.timeout, ConnectionRefusedError):
+            return False
 
 def capture():
     port = find_free_port()
     proc = launch_mitmdump(port)
-    for i in range(4):
-        print(f"Please wait... ({i})")
+    while not is_port_open("localhost", port):
         time.sleep(1)
     launch_chrome_with_proxy(port)
     proc.terminate()
