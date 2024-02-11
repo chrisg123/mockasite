@@ -42,7 +42,7 @@ make install
 ## Usage
 
 - **Capture Mode**: Use `mockasite --capture` to record and serve back a mock
-  version of a website
+  version of a website. To open the browser to a specific URL use `--url <URL>`.
 
 - **Review Capture**: Use `mockasite --review-capture` to review the last capture.
 

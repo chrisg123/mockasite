@@ -28,6 +28,11 @@ def main():
                         action='store_true',
                         help='Record web interactions for later use.')
 
+    parser.add_argument('--url',
+                        type=str,
+                        metavar='URL',
+                        help='The url to pass to the browser.')
+
     parser.add_argument('--review-capture',
                         action='store_true',
                         help='Review the last capture.')
@@ -69,7 +74,7 @@ def main():
     args = parser.parse_args()
 
     if args.capture:
-        capture()
+        capture(url=args.url)
     elif args.review_capture:
         review_capture()
     elif args.delete_capture:
@@ -122,12 +127,12 @@ def is_port_open(host, port):
         except (socket.timeout, ConnectionRefusedError):
             return False
 
-def capture():
+def capture(url: str):
     port = find_free_port()
     proc = launch_mitmdump(port)
     while not is_port_open("localhost", port):
         time.sleep(1)
-    launch_chrome_with_proxy(port)
+    launch_chrome_with_proxy(port, url)
     proc.terminate()
 
 def review_capture():
@@ -191,10 +196,12 @@ def launch_mitmdump(port) -> subprocess.Popen:
                             stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL)
 
-def launch_chrome_with_proxy(port):
+def launch_chrome_with_proxy(port: int, url: str):
     chrome_cmd = [
-        find_chrome_executable(), f"--proxy-server=http://127.0.0.1:{port}"
-    ]
+        find_chrome_executable(), f"--proxy-server=http://127.0.0.1:{port}"]
+    if url:
+        chrome_cmd.extend([url])
+
     with subprocess.Popen(chrome_cmd,
                           stdout=subprocess.DEVNULL,
                           stderr=subprocess.DEVNULL) as proc:
