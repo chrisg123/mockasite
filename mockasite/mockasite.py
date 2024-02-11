@@ -7,12 +7,19 @@ import time
 import hashlib
 import zlib
 import json
+from signal import signal, SIGINT
 from pathlib import Path
 from shutil import which, rmtree
 from urllib.parse import urlparse
 from mitmproxy.io import FlowReader
 
+def sigx(signum, _stackframe):
+    if signum == SIGINT:
+        sys.stdout.write("\nexit\n")
+        sys.exit(0)
+
 def main():
+    signal(SIGINT, sigx)
 
     parser = argparse.ArgumentParser(
         description=
