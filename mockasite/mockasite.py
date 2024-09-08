@@ -1,4 +1,5 @@
 import sys
+import io
 import os
 import argparse
 import socket
@@ -7,19 +8,49 @@ import time
 import hashlib
 import zlib
 import json
+import asyncio
 from signal import signal, SIGINT
 from pathlib import Path
 from shutil import which, rmtree
 from urllib.parse import urlparse
+from multiprocessing import Process, Queue, Event
 from mitmproxy.io import FlowReader
+from mitmproxy.options import Options
+from mitmproxy.tools.dump import DumpMaster
+from mitmproxy import http
+from MockServer import MockServer
+from ProcessTracker import ProcessTracker
+from queue import Empty
 
-def sigx(signum, _stackframe):
-    if signum == SIGINT:
-        sys.stdout.write("\nexit\n")
-        sys.exit(0)
+start_color = "\033[1;35m"
+reset_color = "\033[0m"
+prefix = f"{start_color}:: {reset_color} "
+
+class OutputFilter(io.TextIOWrapper):
+    def write(self, text):
+        if isinstance(text, bytes):
+            text = text.decode('utf-8')
+
+        modified_text = ''.join(f'{prefix}{line}\n' for line in text.splitlines() if line.strip() != '')
+        super().write(modified_text)
+        self.flush()
+
+# sys.stdout = OutputFilter(sys.stdout.buffer, encoding='utf-8')
+# sys.stderr = OutputFilter(sys.stderr.buffer, encoding='utf-8')
+
+def sigx(signum, _stackframe, main_pid: int, ptracker: ProcessTracker):
+    current_pid = os.getpid()
+
+    if current_pid == main_pid:
+        if signum == SIGINT:
+            ptracker.terminate_all()
+            sys.stdout.write("\nexit\n")
+            sys.exit(0)
 
 def main():
-    signal(SIGINT, sigx)
+    main_pid = os.getpid()
+    ptracker = ProcessTracker()
+    signal(SIGINT, lambda s, f: sigx(s, f, main_pid, ptracker))
 
     parser = argparse.ArgumentParser(
         description=
@@ -89,7 +120,7 @@ def main():
         delete_last_capture()
         delete_processed_files()
     elif args.playback:
-        playback()
+        playback(ptracker)
     elif args.export:
         export()
     else:
@@ -120,7 +151,7 @@ def delete_processed_files():
 def is_port_open(host, port):
     """Check if a port is open on a given host."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.settimeout(1)  # Timeout for the socket operation
+        s.settimeout(1) # Timeout for the socket operation
         try:
             s.connect((host, port))
             return True
@@ -130,9 +161,16 @@ def is_port_open(host, port):
 def capture(url: str):
     port = find_free_port()
     proc = launch_mitmdump(port)
+
+    playback_metadata_path = get_playback_storage_path() / "playback_metadata.json"
+    with open(playback_metadata_path, 'w', encoding='utf-8') as f:
+        json.dump({"url": url}, f)
+
     while not is_port_open("localhost", port):
         time.sleep(1)
+
     launch_chrome_with_proxy(port, url)
+
     proc.terminate()
 
 def review_capture():
@@ -167,8 +205,82 @@ def review_processed():
         print(f"{e}")
         return
 
-def playback():
-    print("TODO: Implement playback functionality")
+def run_playback_server(output: Queue, playback_storage_path: Path):
+    server = MockServer(playback_storage_path)
+    try:
+        # while True:
+        #     output.put('Server running...')
+        #     time.sleep(1)
+        server.run()
+    except Exception as e:
+        output.put(f"Error: {str(e)}")
+    finally:
+        output.put('Server stopped')
+
+def playback(ptracker: ProcessTracker):
+    playback_storage_path = get_playback_storage_path()
+    is_directory_empty = len(os.listdir(playback_storage_path)) == 0
+    if is_directory_empty:
+        print("Playback storage path is empty.")
+        return
+
+    port = find_free_port()
+    binding = '0.0.0.0' # Any
+    output = Queue()
+
+    ptracker.start(run_playback_server, output, playback_storage_path)
+    ptracker.start(start_proxy_server, output, binding, port)
+
+    playback_metadata_path = get_playback_storage_path() / "playback_metadata.json"
+    with open(playback_metadata_path, 'r', encoding='utf-8') as f:
+        metadata = json.load(f)
+        url = metadata["url"]
+
+
+    while not is_port_open("localhost", port):
+        time.sleep(1)
+
+    ptracker.start(get_chrome_cmd(port, url), output)
+
+    try:
+        while True:
+            if not output.empty():
+                try:
+                    results = output.get(timeout=1)
+                    print(f"{results}")
+                    if results == 'Server stopped':
+                        break
+                except Empty:
+                    print("Unexpected empty queue after non-empty check.")
+            else:
+                time.sleep(1)
+
+    finally:
+        ptracker.terminate_all()
+
+class Addon:
+    def request(self, flow):
+        flow.request.host = "localhost"
+        flow.request.port = 5000
+        flow.request.scheme = "http"
+
+def start_proxy_server(output: Queue, binding: str, port: int):
+    async def run_proxy():
+        options = Options(listen_host=binding, listen_port=port)
+        m = DumpMaster(options, with_termlog=False, with_dumper=False)
+        m.addons.add(Addon())
+
+        try:
+            await m.run()
+        except KeyboardInterrupt:
+            m.shutdown()
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    output.put(f"Starting proxy server binding={binding}, port={port}. [{os.getpid()}]")
+    loop.run_until_complete(run_proxy())
+    loop.close()
+
 
 def export():
     print("TODO: Implement export functionality")
@@ -197,15 +309,21 @@ def launch_mitmdump(port) -> subprocess.Popen:
                             stderr=subprocess.DEVNULL)
 
 def launch_chrome_with_proxy(port: int, url: str):
-    chrome_cmd = [
-        find_chrome_executable(), f"--proxy-server=http://127.0.0.1:{port}"]
-    if url:
-        chrome_cmd.extend([url])
+    chrome_cmd = get_chrome_cmd(port, url)
 
     with subprocess.Popen(chrome_cmd,
                           stdout=subprocess.DEVNULL,
                           stderr=subprocess.DEVNULL) as proc:
         proc.wait()
+
+
+def get_chrome_cmd(port: int, url: str) -> [str]:
+    chrome_cmd = [
+        find_chrome_executable(), f"--proxy-server=http://127.0.0.1:{port}"
+    ]
+    if url:
+        chrome_cmd.extend([url])
+    return chrome_cmd
 
 def get_last_capture_file() -> Path:
     return get_capture_storage_path() / "traffic_capture"

@@ -2,3 +2,4 @@
 /dist/
 /mockasite.egg-info/
 /venv/
+/mockasite/__pycache__/
