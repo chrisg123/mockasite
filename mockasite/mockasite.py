@@ -22,16 +22,18 @@ from MockServer import MockServer
 from ProcessTracker import ProcessTracker
 from queue import Empty
 
-start_color = "\033[1;35m"
-reset_color = "\033[0m"
-prefix = f"{start_color}:: {reset_color} "
-
 class OutputFilter(io.TextIOWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        start_color = "\033[1;35m"
+        reset_color = "\033[0m"
+        self.prefix = f"{start_color}:: {reset_color} "
+
     def write(self, text):
         if isinstance(text, bytes):
             text = text.decode('utf-8')
 
-        modified_text = ''.join(f'{prefix}{line}\n' for line in text.splitlines() if line.strip() != '')
+        modified_text = ''.join(f'{self.prefix}{line}\n' for line in text.splitlines() if line.strip() != '')
         super().write(modified_text)
         self.flush()
 
