@@ -13,14 +13,13 @@ from signal import signal, SIGINT
 from pathlib import Path
 from shutil import which, rmtree
 from urllib.parse import urlparse
-from multiprocessing import Process, Queue, Event
+from multiprocessing import Queue
+from queue import Empty
 from mitmproxy.io import FlowReader
 from mitmproxy.options import Options
 from mitmproxy.tools.dump import DumpMaster
-from mitmproxy import http
 from MockServer import MockServer
 from ProcessTracker import ProcessTracker
-from queue import Empty
 
 class OutputFilter(io.TextIOWrapper):
     def __init__(self, *args, **kwargs):
