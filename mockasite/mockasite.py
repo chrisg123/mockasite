@@ -18,8 +18,13 @@ from queue import Empty
 from mitmproxy.io import FlowReader
 from mitmproxy.options import Options
 from mitmproxy.tools.dump import DumpMaster
-from MockServer import MockServer
-from ProcessTracker import ProcessTracker
+
+try:
+    from .MockServer import MockServer
+    from .ProcessTracker import ProcessTracker
+except ImportError:
+    print("This script must be run as a module. Use 'python -m mockasite'.")
+    sys.exit(1)
 
 class OutputFilter(io.TextIOWrapper):
     def __init__(self, *args, **kwargs):
@@ -500,5 +505,3 @@ def process_capture():
     with open(url_to_folder_map_file, 'w', encoding='utf-8') as map_file:
         json.dump(string_keyed_dict, map_file, indent=4)
 
-if __name__ == '__main__':
-    sys.exit(main())
