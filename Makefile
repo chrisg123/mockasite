@@ -13,3 +13,6 @@ uninstall:
 
 clean:
 	rm -rf dist
+
+run:
+	$(PY) -m mockasite --help
