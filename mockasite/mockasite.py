@@ -18,13 +18,8 @@ from queue import Empty
 from mitmproxy.io import FlowReader
 from mitmproxy.options import Options
 from mitmproxy.tools.dump import DumpMaster
-
-try:
-    from .MockServer import MockServer
-    from .ProcessTracker import ProcessTracker
-except ImportError:
-    print("This script must be run as a module. Use 'python -m mockasite'.")
-    sys.exit(1)
+from .MockServer import MockServer
+from .ProcessTracker import ProcessTracker
 
 class OutputFilter(io.TextIOWrapper):
     def __init__(self, *args, **kwargs):

@@ -14,6 +14,7 @@ setup(
     url="https://github.com/chrisg123/mockasite",
     install_requires=[
         'flask',
+        'flask-cors',
         'mitmproxy'
     ]
 )
