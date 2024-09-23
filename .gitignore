@@ -3,3 +3,6 @@
 /mockasite.egg-info/
 /venv/
 /mockasite/__pycache__/
+*.tar
+*.gz
+/Dockerfile

@@ -22,6 +22,7 @@ from .MockServer import MockServer
 from .ProcessTracker import ProcessTracker
 
 class OutputFilter(io.TextIOWrapper):
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         start_color = "\033[1;35m"
@@ -32,7 +33,9 @@ class OutputFilter(io.TextIOWrapper):
         if isinstance(text, bytes):
             text = text.decode('utf-8')
 
-        modified_text = ''.join(f'{self.prefix}{line}\n' for line in text.splitlines() if line.strip() != '')
+        modified_text = ''.join(f'{self.prefix}{line}\n'
+                                for line in text.splitlines()
+                                if line.strip() != '')
         super().write(modified_text)
         self.flush()
 
@@ -163,7 +166,8 @@ def capture(url: str):
     port = find_free_port()
     proc = launch_mitmdump(port)
 
-    playback_metadata_path = get_playback_storage_path() / "playback_metadata.json"
+    playback_metadata_path = get_playback_storage_path(
+    ) / "playback_metadata.json"
     with open(playback_metadata_path, 'w', encoding='utf-8') as f:
         json.dump({"url": url}, f)
 
@@ -204,44 +208,48 @@ def review_processed():
         subprocess.run([pager], input=tree_output, text=True, check=True)
     except subprocess.CalledProcessError as e:
         print(f"{e}")
-        return
 
 def run_playback_server(output: Queue, playback_storage_path: Path):
     server = MockServer(playback_storage_path)
     try:
-        # while True:
-        #     output.put('Server running...')
-        #     time.sleep(1)
         server.run()
     except Exception as e:
         output.put(f"Error: {str(e)}")
     finally:
         output.put('Server stopped')
 
+def is_docker() -> bool:
+    return os.getenv("MOCKASITE_ENV") == "DOCKER"
+
 def playback(ptracker: ProcessTracker):
     playback_storage_path = get_playback_storage_path()
     is_directory_empty = len(os.listdir(playback_storage_path)) == 0
     if is_directory_empty:
-        print("Playback storage path is empty.")
+        print(f"Playback storage path '{playback_storage_path}' is empty.")
         return
 
-    port = find_free_port()
+    port = 8080 if is_docker() else find_free_port()
     binding = '0.0.0.0' # Any
     output = Queue()
 
     ptracker.start(run_playback_server, output, playback_storage_path)
     ptracker.start(start_proxy_server, output, binding, port)
 
-    playback_metadata_path = get_playback_storage_path() / "playback_metadata.json"
-    with open(playback_metadata_path, 'r', encoding='utf-8') as f:
-        metadata = json.load(f)
-        url = metadata["url"]
-
+    playback_metadata_path = get_playback_storage_path(
+    ) / "playback_metadata.json"
+    try:
+        with open(playback_metadata_path, 'r', encoding='utf-8') as f:
+            metadata = json.load(f)
+            url = metadata["url"]
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error loading playback metadata: {e}")
+        return
 
     while not is_port_open("localhost", port):
         time.sleep(1)
 
-    ptracker.start(get_chrome_cmd(port, url), output)
+    if not is_docker():
+        ptracker.start(get_chrome_cmd(port, url), output)
 
     try:
         while True:
@@ -260,12 +268,14 @@ def playback(ptracker: ProcessTracker):
         ptracker.terminate_all()
 
 class Addon:
+
     def request(self, flow):
         flow.request.host = "localhost"
         flow.request.port = 5000
         flow.request.scheme = "http"
 
 def start_proxy_server(output: Queue, binding: str, port: int):
+
     async def run_proxy():
         options = Options(listen_host=binding, listen_port=port)
         m = DumpMaster(options, with_termlog=False, with_dumper=False)
@@ -278,13 +288,69 @@ def start_proxy_server(output: Queue, binding: str, port: int):
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    output.put(f"Starting proxy server binding={binding}, port={port}. [{os.getpid()}]")
+    output.put(
+        f"Starting proxy server binding={binding}, port={port}. [{os.getpid()}]"
+    )
     loop.run_until_complete(run_proxy())
     loop.close()
 
-
 def export():
-    print("TODO: Implement export functionality")
+    playback_storage_path = get_playback_storage_path()
+    playback_tar = "playback.tar.gz"
+    image_name = "mockasite_export"
+    image_tar = f"{image_name}.tar"
+    try:
+        subprocess.run(["rm", "-f", playback_tar], check=True)
+        subprocess.run([
+            "tar", "czvf", playback_tar, "-C", playback_storage_path / "..",
+            "www"
+        ],
+                       check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error durring export: {e}")
+
+    dockerfile_content = f"""
+    FROM python:3.12-slim
+
+    ENV MOCKASITE_ENV=DOCKER
+
+    WORKDIR app
+
+    RUN mkdir -p /app/playback
+
+    RUN apt-get update && apt-get install -y git
+
+    COPY {playback_tar} /app/playback/{playback_tar}
+
+    RUN tar -xzvf /app/playback/{playback_tar} -C /app/playback
+
+    RUN pip install git+https://github.com/chrisg123/mockasite.git
+
+    EXPOSE 8080
+
+    CMD ["python", "-m", "mockasite", "--playback"]
+    """
+    with open("Dockerfile", "w", encoding='utf-8') as f:
+        f.write(dockerfile_content)
+
+    # Check if Docker is installed
+    if not which("docker"):
+        print(
+            "Docker is not installed. Please install Docker to use the export functionality."
+        )
+        return
+
+    try:
+        subprocess.run(["docker", "build", "-t", image_name, "."], check=True)
+        subprocess.run(["docker", "save", "-o", image_tar, image_name],
+                       check=True)
+        subprocess.run(["docker", "rmi", image_name], check=True)
+
+        print(
+            f"Docker image saved to {image_tar} and removed from local system."
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"Error durring export: {e}")
 
 def find_free_port(starting_from: int = 8080):
     for port in range(starting_from, 65535):
@@ -317,7 +383,6 @@ def launch_chrome_with_proxy(port: int, url: str):
                           stderr=subprocess.DEVNULL) as proc:
         proc.wait()
 
-
 def get_chrome_cmd(port: int, url: str) -> [str]:
     chrome_cmd = [
         find_chrome_executable(), f"--proxy-server=http://127.0.0.1:{port}"
@@ -337,6 +402,9 @@ def get_capture_storage_path() -> Path:
     return captures_dir
 
 def get_playback_storage_path() -> Path:
+    if is_docker():
+        return Path("/") / "app" / "playback" / "www"
+
     home_dir = Path.home()
     mockasite_dir = home_dir / ".mockasite"
     playback_dir = mockasite_dir / "playback" / "www"
@@ -499,4 +567,3 @@ def process_capture():
 
     with open(url_to_folder_map_file, 'w', encoding='utf-8') as map_file:
         json.dump(string_keyed_dict, map_file, indent=4)
-
