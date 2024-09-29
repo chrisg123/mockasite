@@ -385,7 +385,8 @@ def launch_chrome_with_proxy(port: int, url: str):
 
 def get_chrome_cmd(port: int, url: str) -> [str]:
     chrome_cmd = [
-        find_chrome_executable(), f"--proxy-server=http://127.0.0.1:{port}"
+        find_chrome_executable(), "--incognito",
+        f"--proxy-server=http://127.0.0.1:{port}"
     ]
     if url:
         chrome_cmd.extend([url])
