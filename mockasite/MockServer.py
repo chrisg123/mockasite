@@ -1,5 +1,4 @@
 import json
-import zlib
 import os
 from collections import defaultdict
 from flask import Flask, request, Response
@@ -8,6 +7,7 @@ from flask_cors import CORS
 from queue import Queue
 import logging
 from logging.handlers import QueueHandler
+from .utils import get_query_param_hash, generate_map_key
 
 class MockServer:
     RED = '\033[91m'
@@ -32,16 +32,16 @@ class MockServer:
 
     def mock_server(self, path):
         http_method = request.method
+        origin_header = request.headers.get("Origin")
+        query_param_hash = get_query_param_hash(request.args.keys())
 
-        query_param_hash = format(
-            zlib.crc32('&'.join(request.args.keys()).encode())
-            & 0xffffffff, '08x')
-
-        map_key = f"{http_method}|{'/' + path}|{query_param_hash}"
+        map_key = generate_map_key(http_method, '/' + path, query_param_hash)
         map_key_seq = map_key
 
         if self.request_count[map_key] > 0:
-            map_key_seq += f"|{self.request_count[map_key]}"
+            map_key_seq = generate_map_key(http_method, '/' + path,
+                                           query_param_hash,
+                                           self.request_count[map_key])
 
         self.request_count[map_key] += 1
 
@@ -76,7 +76,13 @@ class MockServer:
 
             return response
 
-        return "No Content", 204
+        response = Response("No Content", status=204)
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        if origin_header:
+            response.headers['Access-Control-Allow-Origin'] = origin_header
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Vary'] = 'Origin'
+        return response
 
     def run(self):
         self.app.run(debug=True, use_reloader=False)

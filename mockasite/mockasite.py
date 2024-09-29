@@ -6,7 +6,6 @@ import socket
 import subprocess
 import time
 import hashlib
-import zlib
 import json
 import asyncio
 from signal import signal, SIGINT
@@ -20,6 +19,8 @@ from mitmproxy.options import Options
 from mitmproxy.tools.dump import DumpMaster
 from .MockServer import MockServer
 from .ProcessTracker import ProcessTracker
+from .utils import (get_query_param_hash, generate_map_key, split_map_key,
+                    get_next_available_map_key)
 
 class OutputFilter(io.TextIOWrapper):
 
@@ -426,14 +427,6 @@ def insert_sequence_number_in_path(path, sequence_number, query_param_hash):
     modified_path = f"{parts[0]}{query_param_hash}.seq{sequence_number}.{parts[1]}"
     return modified_path
 
-def get_next_sequence_number(mapKey, url_to_folder_map):
-    sequence_number = 1
-
-    while mapKey + (sequence_number, ) in url_to_folder_map:
-        sequence_number += 1
-
-    return sequence_number
-
 def normalize_meta(meta):
     headers = meta.get('headers', {})
     headers.pop('Date', None)
@@ -470,11 +463,14 @@ def process_capture():
             flow_type = str(type(flow))
 
             if "HTTPFlow" not in flow_type: continue
+
+            origin_header = flow.request.headers.get("Origin", "no_origin")
             http_method = flow.request.method.upper()
             parsed_url = urlparse(flow.request.pretty_url)
-            query_param_hash = format(
-                zlib.crc32('&'.join(flow.request.query.keys()).encode())
-                & 0xffffffff, '08x')
+            query_param_hash = get_query_param_hash(flow.request.query.keys())
+
+            mapKey = generate_map_key(http_method, parsed_url.path,
+                                      query_param_hash)
 
             directory_path = os.path.join(
                 base_dir, parsed_url.netloc,
@@ -509,7 +505,6 @@ def process_capture():
                     f"{http_method}.BODY.{query_param_hash}.{hash_path(file_name)}.json"
                 )
 
-            mapKey = (http_method, parsed_url.path, query_param_hash)
             if mapKey in url_to_folder_map:
                 meta_path, body_path = url_to_folder_map[mapKey]
 
@@ -540,9 +535,8 @@ def process_capture():
                         # The response is a duplicate, so skip further processing
                         continue
 
-                sequence_number = get_next_sequence_number(
-                    mapKey, url_to_folder_map)
-                mapKey = mapKey + (sequence_number, )
+                mapKey = get_next_available_map_key(mapKey, url_to_folder_map)
+                _, _, _, sequence_number = split_map_key(mapKey)
 
                 if not hasResponse:
                     url_to_folder_map[mapKey] = None
@@ -566,7 +560,5 @@ def process_capture():
 
                 url_to_folder_map[mapKey] = [meta_path, body_path]
 
-    string_keyed_dict = convert_keys_to_string(url_to_folder_map)
-
     with open(url_to_folder_map_file, 'w', encoding='utf-8') as map_file:
-        json.dump(string_keyed_dict, map_file, indent=4)
+        json.dump(url_to_folder_map, map_file, indent=4)
