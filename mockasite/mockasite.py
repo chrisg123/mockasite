@@ -341,10 +341,12 @@ def export():
         return
 
     try:
-        subprocess.run(["docker", "build", "-t", image_name, "."], check=True)
+        subprocess.run(
+            ["docker", "build", "--no-cache", "-t", image_name, "."],
+            check=True)
         subprocess.run(["docker", "save", "-o", image_tar, image_name],
                        check=True)
-        subprocess.run(["docker", "rmi", image_name], check=True)
+        subprocess.run(["docker", "rmi", "-f", image_name], check=True)
 
         print(
             f"Docker image saved to {image_tar} and removed from local system."
