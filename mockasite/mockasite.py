@@ -127,6 +127,7 @@ def main():
     elif args.delete_all:
         delete_last_capture()
         delete_processed_files()
+        delete_docker_export()
     elif args.playback:
         playback(ptracker)
     elif args.export:
@@ -155,6 +156,33 @@ def delete_processed_files():
             print(f"Delete '{playback_storage_path}'")
         except OSError as e:
             print(f"Error: {e.strerror}")
+
+def delete_docker_export():
+    image_name = f"{PKG_NAME}_export"
+    tar_file = f"{image_name}.tar"
+
+    if os.path.isfile(tar_file):
+        try:
+            os.remove(tar_file)
+            print(f"Delete '{tar_file}'")
+        except Exception as e:
+            print(f"Error: {e}")
+
+    if not which("docker"): return
+
+    def do_docker_remove(default_to_yes=False, msg_prefix="") -> bool:
+        return get_user_confirmation(
+            f"{msg_prefix}Remove any docker images named '{image_name}'?", default_to_yes)
+
+    if is_root():
+        if not docker_image_exists(image_name):
+            print(f"Nothing to do, no docker image named '{image_name}' found.")
+            return
+        if not do_docker_remove(default_to_yes=True, msg_prefix="*root* "): return
+        docker_image_remove(image_name)
+    else:
+        if do_docker_remove(): re_run_as_sudo()
+        return
 
 def is_port_open(host, port):
     """Check if a port is open on a given host."""
