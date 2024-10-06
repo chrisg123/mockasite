@@ -20,7 +20,7 @@ from mitmproxy.tools.dump import DumpMaster
 from .MockServer import MockServer
 from .ProcessTracker import ProcessTracker
 from .utils import (get_query_param_hash, generate_map_key, split_map_key,
-                    get_next_available_map_key)
+                    get_next_available_map_key, re_run_as_sudo)
 
 class OutputFilter(io.TextIOWrapper):
 
@@ -296,6 +296,8 @@ def start_proxy_server(output: Queue, binding: str, port: int):
     loop.close()
 
 def export():
+    re_run_as_sudo()
+
     playback_storage_path = get_playback_storage_path()
     playback_tar = "playback.tar.gz"
     image_name = "mockasite_export"
