@@ -16,8 +16,26 @@ def get_user_confirmation(message: str, default_to_yes: bool = False) -> bool:
         if response == '': return default_to_yes
         print("Invalid response. Please enter 'Y' or 'N'.")
 
+def docker_image_remove(image_name):
+    try:
+        subprocess.run(["docker", "rmi", "-f", image_name], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error removing Docker image '{image_name}': {e.stderr}")
+
+def docker_image_exists(image_name: str) -> bool:
+    try:
+        result = subprocess.run(["docker", "images", "-q", image_name],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                text=True,
+                                check=True)
+        return bool(result.stdout.strip())
+    except subprocess.CalledProcessError:
+        return False
+
+
 def re_run_as_sudo():
-    if os.geteuid() == 0: return
+    if is_root(): return
 
     if not get_user_confirmation(
             "This command requires root privileges." +
