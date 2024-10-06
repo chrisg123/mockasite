@@ -4,6 +4,9 @@ import subprocess
 import zlib
 from typing import Iterable, Tuple
 
+def is_root() -> bool:
+    return os.geteuid() == 0
+
 def get_user_confirmation(message: str, default_to_yes: bool = False) -> bool:
     while True:
         default_prompt = "[Y/n]" if default_to_yes else "[y/N]"
