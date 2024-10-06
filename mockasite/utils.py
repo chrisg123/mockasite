@@ -1,5 +1,43 @@
+import os
+import sys
+import subprocess
 import zlib
 from typing import Iterable, Tuple
+
+def re_run_as_sudo():
+    if os.geteuid() == 0: return
+
+    while True:
+        try:
+            response = input("This command requires root privileges." +
+                             " Do you want to re-launch with sudo? [Y/n]: "
+                             ).strip().lower()
+        except EOFError:
+            print("\nNo input detected. Aborting.")
+            sys.exit(1)
+
+        if response in ['', 'y', 'yes']: break
+
+        if response in ['n', 'no']:
+            print("Aborting.")
+            sys.exit(1)
+
+        print("Please respond with 'Y' or 'N'.")
+
+    print("Re-launching with sudo...")
+
+    if __package__:
+        command = ["sudo", "-E", sys.executable, "-m", __package__
+                   ] + sys.argv[1:]
+    else:
+        command = ["sudo", "-E", sys.argv[0]] + sys.argv[1:]
+    try:
+        #print(command)
+        subprocess.run(command, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to re-run as sudo: {e}")
+        sys.exit(e.returncode)
+    sys.exit(0)
 
 def hash_crc32(value: str) -> str:
     return format(zlib.crc32(value.encode()) & 0xffffffff, '08x')
