@@ -52,7 +52,8 @@ def generate_map_key(http_method: str,
     base_key = f"{http_method}|{path}|{query_param_hash}"
     return f"{base_key}|{sequence_number}" if sequence_number is not None else base_key
 
-def split_map_key(map_key: str, delimiter: str = '|') -> Tuple[str, str, str, str]:
+def split_map_key(map_key: str,
+                  delimiter: str = '|') -> Tuple[str, str, str, str]:
     components = map_key.split(delimiter)
     if len(components) == 4:
         return (components[0], components[1], components[2], components[3])
@@ -61,12 +62,14 @@ def split_map_key(map_key: str, delimiter: str = '|') -> Tuple[str, str, str, st
 
 def get_next_available_map_key(mapKey: str, url_to_folder_map: dict) -> str:
     """Returns the next available map key with an incremented sequence number."""
-    http_method, path, query_param_hash, sequence_number = split_map_key(mapKey)
+    http_method, path, query_param_hash, sequence_number = split_map_key(
+        mapKey)
 
     sequence_number = sequence_number or 1
 
     while True:
-        new_map_key = generate_map_key(http_method, path, query_param_hash, sequence_number)
+        new_map_key = generate_map_key(http_method, path, query_param_hash,
+                                       sequence_number)
         if new_map_key not in url_to_folder_map:
             break
         sequence_number += 1
