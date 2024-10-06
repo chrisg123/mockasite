@@ -4,25 +4,23 @@ import subprocess
 import zlib
 from typing import Iterable, Tuple
 
+def get_user_confirmation(message: str, default_to_yes: bool = False) -> bool:
+    while True:
+        default_prompt = "[Y/n]" if default_to_yes else "[y/N]"
+        response = input(f"{message} {default_prompt}:").strip().lower()
+        if response in ['y', 'yes']: return True
+        if response in ['n', 'no']: return False
+        if response == '': return default_to_yes
+        print("Invalid response. Please enter 'Y' or 'N'.")
+
 def re_run_as_sudo():
     if os.geteuid() == 0: return
 
-    while True:
-        try:
-            response = input("This command requires root privileges." +
-                             " Do you want to re-launch with sudo? [Y/n]: "
-                             ).strip().lower()
-        except EOFError:
-            print("\nNo input detected. Aborting.")
-            sys.exit(1)
-
-        if response in ['', 'y', 'yes']: break
-
-        if response in ['n', 'no']:
-            print("Aborting.")
-            sys.exit(1)
-
-        print("Please respond with 'Y' or 'N'.")
+    if not get_user_confirmation(
+            "This command requires root privileges." +
+            " Do you want to re-launch with sudo?"):
+        print("Aborting.")
+        sys.exit(0)
 
     print("Re-launching with sudo...")
 
