@@ -1,11 +1,43 @@
 import os
 import sys
+import pwd
 import subprocess
 import zlib
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, Optional, List
+from pathlib import Path
 
 def is_root() -> bool:
     return os.geteuid() == 0
+
+def get_effective_user() -> str:
+    sudo_user = os.environ.get("SUDO_USER")
+    if sudo_user:
+        return sudo_user
+    return os.getlogin()
+
+def mkdir_p(path: Path, chown: Optional[str]=None):
+    uid, gid = None, None
+    if chown:
+        try:
+            user_info = pwd.getpwnam(chown)
+            uid, gid = user_info.pw_uid, user_info.pw_gid
+        except KeyError as e:
+            raise ValueError(f"User '{chown}' does not exist.") from e
+
+    current_path = path
+    dirs_to_create = []
+    while not current_path.exists():
+        dirs_to_create.append(current_path)
+        current_path = current_path.parent
+
+    for d in reversed(dirs_to_create):
+        d.mkdir(parents=False, exist_ok=True)
+        if uid is not None and gid is not None:
+            try:
+                os.chown(d, uid, gid)
+            except PermissionError:
+                print(f"Could not change ownership of '{d}'.")
+                raise
 
 def get_user_confirmation(message: str, default_to_yes: bool = False) -> bool:
     while True:

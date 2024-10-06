@@ -22,7 +22,7 @@ from .ProcessTracker import ProcessTracker
 from .utils import (generate_map_key, split_map_key,
                     get_next_available_map_key, re_run_as_sudo,
                     get_user_confirmation, is_root, docker_image_remove,
-                    docker_image_exists)
+                    docker_image_exists, get_effective_user, mkdir_p)
 
 PKG_NAME = __package__ if __package__ else "mockasite"
 
@@ -447,7 +447,7 @@ def get_playback_storage_path() -> Path:
     home_dir = Path.home()
     mockasite_dir = home_dir / ".mockasite"
     playback_dir = mockasite_dir / "playback" / "www"
-    playback_dir.mkdir(parents=True, exist_ok=True)
+    mkdir_p(playback_dir, get_effective_user())
     return playback_dir
 
 def convert_keys_to_string(dictionary):
