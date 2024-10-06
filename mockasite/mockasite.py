@@ -19,9 +19,10 @@ from mitmproxy.options import Options
 from mitmproxy.tools.dump import DumpMaster
 from .MockServer import MockServer
 from .ProcessTracker import ProcessTracker
-from .utils import (get_query_param_hash, generate_map_key, split_map_key,
+from .utils import (generate_map_key, split_map_key,
                     get_next_available_map_key, re_run_as_sudo,
-                    get_user_confirmation, is_root, docker_image_remove, docker_image_exists)
+                    get_user_confirmation, is_root, docker_image_remove,
+                    docker_image_exists)
 
 PKG_NAME = __package__ if __package__ else "mockasite"
 
@@ -501,10 +502,11 @@ def process_capture():
             origin_header = flow.request.headers.get("Origin", "no_origin")
             http_method = flow.request.method.upper()
             parsed_url = urlparse(flow.request.pretty_url)
-            query_param_hash = get_query_param_hash(flow.request.query.keys())
 
             mapKey = generate_map_key(http_method, parsed_url.path,
-                                      query_param_hash)
+                                      flow.request.query.keys())
+
+            _, _, query_param_hash, _ = split_map_key(mapKey)
 
             directory_path = os.path.join(
                 base_dir, parsed_url.netloc,

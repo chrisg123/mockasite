@@ -61,13 +61,12 @@ def re_run_as_sudo():
 def hash_crc32(value: str) -> str:
     return format(zlib.crc32(value.encode()) & 0xffffffff, '08x')
 
-def get_query_param_hash(query_params: Iterable[str]) -> str:
-    return hash_crc32('&'.join(query_params))
-
 def generate_map_key(http_method: str,
                      path: str,
-                     query_param_hash: str,
+                     query_params: Iterable,
                      sequence_number: int = None) -> str:
+    query_params_str = [str(param) for param in query_params]
+    query_param_hash = hash_crc32('&'.join(query_params_str))
     base_key = f"{http_method}|{path}|{query_param_hash}"
     return f"{base_key}|{sequence_number}" if sequence_number is not None else base_key
 

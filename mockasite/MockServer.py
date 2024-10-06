@@ -7,7 +7,7 @@ from flask_cors import CORS
 from queue import Queue
 import logging
 from logging.handlers import QueueHandler
-from .utils import get_query_param_hash, generate_map_key
+from .utils import generate_map_key, split_map_key
 
 class MockServer:
     RED = '\033[91m'
@@ -33,10 +33,10 @@ class MockServer:
     def mock_server(self, path):
         http_method = request.method
         origin_header = request.headers.get("Origin")
-        query_param_hash = get_query_param_hash(request.args.keys())
 
-        map_key = generate_map_key(http_method, '/' + path, query_param_hash)
+        map_key = generate_map_key(http_method, '/' + path, request.args.keys())
         map_key_seq = map_key
+        _, _, query_param_hash, _ = split_map_key(map_key)
 
         if self.request_count[map_key] > 0:
             map_key_seq = generate_map_key(http_method, '/' + path,
