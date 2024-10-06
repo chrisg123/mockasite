@@ -20,7 +20,10 @@ from mitmproxy.tools.dump import DumpMaster
 from .MockServer import MockServer
 from .ProcessTracker import ProcessTracker
 from .utils import (get_query_param_hash, generate_map_key, split_map_key,
-                    get_next_available_map_key, re_run_as_sudo)
+                    get_next_available_map_key, re_run_as_sudo,
+                    get_user_confirmation, is_root, docker_image_remove, docker_image_exists)
+
+PKG_NAME = __package__ if __package__ else "mockasite"
 
 class OutputFilter(io.TextIOWrapper):
 
@@ -300,7 +303,7 @@ def export():
 
     playback_storage_path = get_playback_storage_path()
     playback_tar = "playback.tar.gz"
-    image_name = "mockasite_export"
+    image_name = f"{PKG_NAME}_export"
     image_tar = f"{image_name}.tar"
     try:
         subprocess.run(["rm", "-f", playback_tar], check=True)
@@ -349,13 +352,14 @@ def export():
             check=True)
         subprocess.run(["docker", "save", "-o", image_tar, image_name],
                        check=True)
-        subprocess.run(["docker", "rmi", "-f", image_name], check=True)
 
         print(
-            f"Docker image saved to {image_tar} and removed from local system."
+            f"Docker image saved to {image_tar}."
         )
     except subprocess.CalledProcessError as e:
         print(f"Error durring export: {e}")
+
+    docker_image_remove(image_name)
 
 def find_free_port(starting_from: int = 8080):
     for port in range(starting_from, 65535):
