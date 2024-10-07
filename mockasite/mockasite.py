@@ -242,8 +242,8 @@ def review_processed():
     except subprocess.CalledProcessError as e:
         print(f"{e}")
 
-def run_playback_server(output: Queue, playback_storage_path: Path):
-    server = MockServer(playback_storage_path)
+def run_playback_server(output: Queue, url_to_folder_map_file: Path):
+    server = MockServer(url_to_folder_map_file)
     try:
         server.run()
     except Exception as e:
@@ -261,11 +261,18 @@ def playback(ptracker: ProcessTracker):
         print(f"Playback storage path '{playback_storage_path}' is empty.")
         return
 
+    url_to_folder_map_file = get_url_to_folder_map_file(playback_storage_path)
+
+    if not url_to_folder_map_file.exists():
+        print(f"Playback map file '{url_to_folder_map_file}' does not exist." +
+              " Try running --process first.")
+        return
+
     port = 8080 if is_docker() else find_free_port()
     binding = '0.0.0.0' # Any
     output = Queue()
 
-    ptracker.start(run_playback_server, output, playback_storage_path)
+    ptracker.start(run_playback_server, output, url_to_folder_map_file)
     ptracker.start(start_proxy_server, output, binding, port)
 
     playback_metadata_path = get_playback_storage_path(
@@ -449,6 +456,9 @@ def get_playback_storage_path() -> Path:
     playback_dir = mockasite_dir / "playback" / "www"
     mkdir_p(playback_dir, get_effective_user())
     return playback_dir
+
+def get_url_to_folder_map_file(playback_storage_path: Path) -> Path:
+    return playback_storage_path / "url_to_folder_map.json"
 
 def convert_keys_to_string(dictionary):
     """Converts dictionary keys from tuples to strings."""

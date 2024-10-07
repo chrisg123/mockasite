@@ -14,12 +14,12 @@ class MockServer:
     GREEN = '\033[92m'
     RESET = '\033[0m'
 
-    def __init__(self, playback_storage_path: Path):
+    def __init__(self, url_to_folder_map_file: Path):
         self.app = Flask(__name__)
         CORS(self.app)
 
         self.request_count = defaultdict(int)
-        self.url_to_folder_map_file = playback_storage_path / "url_to_folder_map.json"
+        self.url_to_folder_map_file = url_to_folder_map_file
         with open(self.url_to_folder_map_file, 'r', encoding='utf-8') as f:
             self.url_to_folder_map = json.load(f)
 
