@@ -24,8 +24,6 @@ from .utils import (generate_map_key, split_map_key,
                     get_user_confirmation, is_root, docker_image_remove,
                     docker_image_exists, get_effective_user, mkdir_p)
 
-PKG_NAME = __package__ if __package__ else "mockasite"
-
 class OutputFilter(io.TextIOWrapper):
 
     def __init__(self, *args, **kwargs):
@@ -159,7 +157,7 @@ def delete_processed_files():
             print(f"Error: {e.strerror}")
 
 def delete_docker_export():
-    image_name = f"{PKG_NAME}_export"
+    image_name = f"{get_pkg_name()}_export"
     tar_file = f"{image_name}.tar"
 
     if os.path.isfile(tar_file):
@@ -339,7 +337,7 @@ def export():
 
     playback_storage_path = get_playback_storage_path()
     playback_tar = "playback.tar.gz"
-    image_name = f"{PKG_NAME}_export"
+    image_name = f"{get_pkg_name()}_export"
     image_tar = f"{image_name}.tar"
     try:
         subprocess.run(["rm", "-f", playback_tar], check=True)
@@ -436,6 +434,9 @@ def get_chrome_cmd(port: int, url: str) -> [str]:
     if url:
         chrome_cmd.extend([url])
     return chrome_cmd
+
+def get_pkg_name():
+    return __package__ if __package__ else "mockasite"
 
 def get_last_capture_file() -> Path:
     return get_capture_storage_path() / "traffic_capture"
