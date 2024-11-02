@@ -602,8 +602,12 @@ def process_capture():
                 with open(meta_path, 'w', encoding='utf-8') as meta_file:
                     json.dump(response_data, meta_file, indent=4)
 
-                with open(body_path, 'wb') as body_file:
-                    body_file.write(flow.response.content)
+                if flow.response.content is not None:
+                    with open(body_path, 'wb') as body_file:
+                        body_file.write(flow.response.content)
+                else:
+                    with open(body_path, 'wb') as body_file:
+                        pass # Creates empty file
 
                 url_to_folder_map[mapKey] = [meta_path, body_path]
 
