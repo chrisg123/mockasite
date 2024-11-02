@@ -56,7 +56,7 @@ class MockServer:
             meta_path, body_path = self.url_to_folder_map[map_key]
 
             meta = {"status_code": 200, "headers": {}}
-            body = ''
+            body = b''
 
             if os.path.isfile(meta_path):
                 with open(meta_path, 'r', encoding='utf-8') as f:
