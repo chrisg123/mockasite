@@ -10,7 +10,7 @@ import json
 import asyncio
 from signal import signal, SIGINT
 from pathlib import Path
-from shutil import which, rmtree
+from shutil import which, rmtree, copy
 from urllib.parse import urlparse
 from multiprocessing import Queue
 from queue import Empty
@@ -197,8 +197,9 @@ def capture(url: str):
     port = find_free_port()
     proc = launch_mitmdump(port)
 
-    playback_metadata_path = get_playback_storage_path(
+    playback_metadata_path = get_capture_storage_path(
     ) / "playback_metadata.json"
+
     with open(playback_metadata_path, 'w', encoding='utf-8') as f:
         json.dump({"url": url}, f)
 
@@ -500,6 +501,11 @@ def process_capture():
     base_dir = get_playback_storage_path()
     max_path_length = 255
 
+    playback_metadata_path = get_capture_storage_path(
+    ) / "playback_metadata.json"
+
+    copy(playback_metadata_path, base_dir)
+
     url_to_folder_map_file = base_dir / "url_to_folder_map.json"
     url_to_folder_map = {}
 
@@ -534,22 +540,24 @@ def process_capture():
 
             meta_path = os.path.join(
                 directory_path,
-                f"{http_method}.META.{query_param_hash}.{file_name}.json")
+                f"{http_method}.META.ORIGINHASH.{query_param_hash}.{file_name}.json"
+            )
 
             if len(meta_path) > max_path_length:
                 meta_path = os.path.join(
                     directory_path,
-                    f"{http_method}.META.{query_param_hash}.{hash_path(file_name)}.json"
+                    f"{http_method}.META.ORIGINHASH.{query_param_hash}.{hash_path(file_name)}.json"
                 )
 
             body_path = os.path.join(
                 directory_path,
-                f"{http_method}.BODY.{query_param_hash}.{file_name}")
+                f"{http_method}.BODY.ORIGINHASH.{query_param_hash}.{file_name}"
+            )
 
             if len(body_path) > max_path_length:
                 body_path = os.path.join(
                     directory_path,
-                    f"{http_method}.BODY.{query_param_hash}.{hash_path(file_name)}.json"
+                    f"{http_method}.BODY.ORIGINHASH.{query_param_hash}.{hash_path(file_name)}.json"
                 )
 
             if mapKey in url_to_folder_map:
