@@ -76,7 +76,7 @@ class MockServer:
                 response.headers[key] = value
 
 
-            print(f"DEBUG: body_path: {body_path}")
+            print(f"DEBUG: body_path: {body_path}", flush=True)
             return response
 
         # Debug information if map_key was not found
