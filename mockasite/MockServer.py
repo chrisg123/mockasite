@@ -75,6 +75,8 @@ class MockServer:
                 if key in self.ignore_headers: continue
                 response.headers[key] = value
 
+
+            print(f"DEBUG: body_path: {body_path}")
             return response
 
         # Debug information if map_key was not found
@@ -89,8 +91,6 @@ class MockServer:
             "map_key_sequence": map_key_seq,
             "available_keys": list(self.url_to_folder_map.keys())
         }
-
-        print("DEBUG INFO:", json.dumps(debug_info, indent=4))
 
         # Return debug info as a JSON response
         response = Response(json.dumps(debug_info, indent=4), status=404, mimetype="application/json")
