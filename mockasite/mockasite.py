@@ -519,11 +519,12 @@ def process_capture():
             origin_header = flow.request.headers.get("Origin", "no_origin")
             http_method = flow.request.method.upper()
             parsed_url = urlparse(flow.request.pretty_url)
+            query_params = flow.request.query.keys()
 
             mapKey = generate_map_key(http_method, parsed_url.path,
-                                      flow.request.query.keys())
+                                      query_params, origin_header)
 
-            _, _, query_param_hash, _ = split_map_key(mapKey)
+            _, _, query_param_hash, origin_hash, _ = split_map_key(mapKey)
 
             directory_path = os.path.join(
                 base_dir, parsed_url.netloc,
@@ -540,24 +541,24 @@ def process_capture():
 
             meta_path = os.path.join(
                 directory_path,
-                f"{http_method}.META.ORIGINHASH.{query_param_hash}.{file_name}.json"
+                f"{http_method}.META.{origin_hash}.{query_param_hash}.{file_name}.json"
             )
 
             if len(meta_path) > max_path_length:
                 meta_path = os.path.join(
                     directory_path,
-                    f"{http_method}.META.ORIGINHASH.{query_param_hash}.{hash_path(file_name)}.json"
+                    f"{http_method}.META.{origin_hash}.{query_param_hash}.{hash_path(file_name)}.json"
                 )
 
             body_path = os.path.join(
                 directory_path,
-                f"{http_method}.BODY.ORIGINHASH.{query_param_hash}.{file_name}"
+                f"{http_method}.BODY.{origin_hash}.{query_param_hash}.{file_name}"
             )
 
             if len(body_path) > max_path_length:
                 body_path = os.path.join(
                     directory_path,
-                    f"{http_method}.BODY.ORIGINHASH.{query_param_hash}.{hash_path(file_name)}.json"
+                    f"{http_method}.BODY.{origin_hash}.{query_param_hash}.{hash_path(file_name)}.json"
                 )
 
             if mapKey in url_to_folder_map:
@@ -590,8 +591,8 @@ def process_capture():
                         # The response is a duplicate, so skip further processing
                         continue
 
-                mapKey = get_next_available_map_key(mapKey, url_to_folder_map)
-                _, _, _, sequence_number = split_map_key(mapKey)
+                mapKey = get_next_available_map_key(mapKey, url_to_folder_map, query_params, origin_header)
+                _, _, _, _, sequence_number = split_map_key(mapKey)
 
                 if not hasResponse:
                     url_to_folder_map[mapKey] = None

@@ -32,15 +32,16 @@ class MockServer:
 
     def mock_server(self, path):
         http_method = request.method
-        origin_header = request.headers.get("Origin")
-
-        map_key = generate_map_key(http_method, '/' + path, request.args.keys())
+        origin_header = request.headers.get("Origin", "no_origin")
+        query_params = request.args.keys()
+        map_key = generate_map_key(http_method, '/' + path, query_params, origin_header)
         map_key_seq = map_key
-        _, _, query_param_hash, _ = split_map_key(map_key)
+        _, _, query_param_hash, _, _ = split_map_key(map_key)
 
         if self.request_count[map_key] > 0:
             map_key_seq = generate_map_key(http_method, '/' + path,
-                                           query_param_hash,
+                                           query_params,
+                                           origin_header,
                                            self.request_count[map_key])
 
         self.request_count[map_key] += 1

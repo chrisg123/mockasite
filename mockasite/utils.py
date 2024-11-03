@@ -15,7 +15,7 @@ def get_effective_user() -> str:
         return sudo_user
     return os.getlogin()
 
-def mkdir_p(path: Path, chown: Optional[str]=None):
+def mkdir_p(path: Path, chown: Optional[str] = None):
     uid, gid = None, None
     if chown:
         try:
@@ -65,13 +65,11 @@ def docker_image_exists(image_name: str) -> bool:
     except subprocess.CalledProcessError:
         return False
 
-
 def re_run_as_sudo():
     if is_root(): return
 
-    if not get_user_confirmation(
-            "This command requires root privileges." +
-            " Do you want to re-launch with sudo?"):
+    if not get_user_confirmation("This command requires root privileges." +
+                                 " Do you want to re-launch with sudo?"):
         print("Aborting.")
         sys.exit(0)
 
@@ -95,31 +93,41 @@ def hash_crc32(value: str) -> str:
 
 def generate_map_key(http_method: str,
                      path: str,
-                     query_params: Iterable,
+                     query_params: Iterable[str],
+                     origin_header: str,
                      sequence_number: int = None) -> str:
+    if not (origin_header.startswith(
+        ("http://", "https://")) or origin_header == "no_origin"):
+        raise ValueError(
+            "origin_header must start with 'http://' or 'https://'," +
+            f" or be 'no_origin'. Value was {origin_header}")
+
     query_params_str = [str(param) for param in query_params]
     query_param_hash = hash_crc32('&'.join(query_params_str))
-    base_key = f"{http_method}|{path}|{query_param_hash}"
+    origin_hash = hash_crc32(origin_header)
+    base_key = f"{http_method}|{path}|{query_param_hash}|{origin_hash}"
     return f"{base_key}|{sequence_number}" if sequence_number is not None else base_key
 
 def split_map_key(map_key: str,
                   delimiter: str = '|') -> Tuple[str, str, str, str]:
     components = map_key.split(delimiter)
-    if len(components) == 4:
-        return (components[0], components[1], components[2], components[3])
+    if len(components) == 5:
+        return (components[0], components[1], components[2], components[3],
+                components[4])
 
-    return (components[0], components[1], components[2], None)
+    return (components[0], components[1], components[2], components[3], None)
 
-def get_next_available_map_key(mapKey: str, url_to_folder_map: dict) -> str:
+def get_next_available_map_key(mapKey: str, url_to_folder_map: dict,
+                               query_params: Iterable,
+                               origin_header: str) -> str:
     """Returns the next available map key with an incremented sequence number."""
-    http_method, path, query_param_hash, sequence_number = split_map_key(
-        mapKey)
+    http_method, path, _, _, sequence_number = split_map_key(mapKey)
 
     sequence_number = sequence_number or 1
 
     while True:
-        new_map_key = generate_map_key(http_method, path, query_param_hash,
-                                       sequence_number)
+        new_map_key = generate_map_key(http_method, path, query_params,
+                                       origin_header, sequence_number)
         if new_map_key not in url_to_folder_map:
             break
         sequence_number += 1
