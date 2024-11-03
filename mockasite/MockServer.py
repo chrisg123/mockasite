@@ -77,7 +77,23 @@ class MockServer:
 
             return response
 
-        response = Response("No Content", status=204)
+        # Debug information if map_key was not found
+        debug_info = {
+            "source": "mockasite",
+            "message": "No recorded response found for request.",
+            "http_method": http_method,
+            "path": path,
+            "origin_header": origin_header,
+            "query_params": list(query_params),
+            "generated_map_key": map_key,
+            "map_key_sequence": map_key_seq,
+            "available_keys": list(self.url_to_folder_map.keys())
+        }
+
+        print("DEBUG INFO:", json.dumps(debug_info, indent=4))
+
+        # Return debug info as a JSON response
+        response = Response(json.dumps(debug_info, indent=4), status=404, mimetype="application/json")
         response.headers['Access-Control-Allow-Origin'] = '*'
         if origin_header:
             response.headers['Access-Control-Allow-Origin'] = origin_header
