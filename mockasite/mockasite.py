@@ -112,6 +112,7 @@ def main():
     args = parser.parse_args()
 
     if args.capture:
+        ensure_chrome_not_running()
         capture(url=args.url)
     elif args.review_capture:
         review_capture()

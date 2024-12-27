@@ -3,6 +3,7 @@ import sys
 import pwd
 import subprocess
 import zlib
+import time
 from typing import Iterable, Tuple, Optional, List
 from pathlib import Path
 
@@ -133,3 +134,34 @@ def get_next_available_map_key(mapKey: str, url_to_folder_map: dict,
         sequence_number += 1
 
     return new_map_key
+def ensure_chrome_not_running():
+
+    def is_chrome_running() -> bool:
+        try:
+            subprocess.run(['pgrep', 'chrome'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
+    def kill_chrome_instances():
+        subprocess.run(['pkill', 'chrome'], check=True)
+
+    still_msg = ""
+    while is_chrome_running():
+
+        if get_user_confirmation(
+                f"\nChrome browser is {still_msg}running. It must be closed to proceed.\n" +
+                "Choose 'Y' to kill all instances of Chrome, or manually close" +
+                " then proceed with 'N'.",
+                default_to_yes=False):
+            print("Attempting to close all Chrome instances...")
+            kill_chrome_instances()
+            break
+        still_msg = "STILL "
+
+    time.sleep(1)
+
+    if is_chrome_running():
+        raise SystemExit("Process aborted due to running Chrome instances.")
+
+    print("No running Chrome instances detected. Proceeding...")
