@@ -4,8 +4,12 @@ import pwd
 import subprocess
 import zlib
 import time
+import socket
 from typing import Iterable, Tuple, Optional, List
 from pathlib import Path
+
+def get_pkg_name():
+    return __package__ if __package__ else "mockasite"
 
 def is_root() -> bool:
     return os.geteuid() == 0
@@ -134,6 +138,7 @@ def get_next_available_map_key(mapKey: str, url_to_folder_map: dict,
         sequence_number += 1
 
     return new_map_key
+
 def ensure_chrome_not_running():
 
     def is_chrome_running() -> bool:
@@ -165,3 +170,13 @@ def ensure_chrome_not_running():
         raise SystemExit("Process aborted due to running Chrome instances.")
 
     print("No running Chrome instances detected. Proceeding...")
+
+def find_free_port(starting_from: int = 8080):
+    for port in range(starting_from, 65535):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('', port))
+                return port
+        except OSError:
+            continue
+    raise Exception("No free ports available.")

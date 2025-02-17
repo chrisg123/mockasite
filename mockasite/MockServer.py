@@ -7,15 +7,16 @@ from flask_cors import CORS
 from queue import Queue
 import logging
 from logging.handlers import QueueHandler
-from .utils import generate_map_key, split_map_key
+from .utils import (get_pkg_name, generate_map_key, split_map_key, find_free_port)
 
 class MockServer:
     RED = '\033[91m'
     GREEN = '\033[92m'
     RESET = '\033[0m'
 
-    def __init__(self, url_to_folder_map_file: Path):
+    def __init__(self, url_to_folder_map_file: Path, port: int):
         self.app = Flask(__name__)
+        self.port = port
         CORS(self.app)
 
         self.request_count = defaultdict(int)
@@ -81,7 +82,7 @@ class MockServer:
 
         # Debug information if map_key was not found
         debug_info = {
-            "source": "mockasite",
+            "source": f"{get_pkg_name()}",
             "message": "No recorded response found for request.",
             "http_method": http_method,
             "path": path,
@@ -102,4 +103,4 @@ class MockServer:
         return response
 
     def run(self):
-        self.app.run(debug=True, use_reloader=False)
+        self.app.run(port=self.port, debug=True, use_reloader=False)
