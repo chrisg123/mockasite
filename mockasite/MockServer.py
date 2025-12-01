@@ -88,6 +88,7 @@ class MockServer:
             "path": path,
             "origin_header": origin_header,
             "query_params": list(query_params),
+            "query_param_hash": query_param_hash,
             "generated_map_key": map_key,
             "map_key_sequence": map_key_seq,
             "available_keys": list(self.url_to_folder_map.keys())

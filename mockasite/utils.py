@@ -8,6 +8,15 @@ import socket
 from typing import Iterable, Tuple, Optional, List
 from pathlib import Path
 
+VOLATILE_QUERY_PARAMS = {
+    "_gl",
+    "_ga",
+    "_ga_89NPCTDXQR",  # example; add more as you discover them
+    "gclid",
+    "fbclid",
+    "msclkid",
+}
+
 def get_pkg_name():
     return __package__ if __package__ else "mockasite"
 
@@ -96,18 +105,43 @@ def re_run_as_sudo():
 def hash_crc32(value: str) -> str:
     return format(zlib.crc32(value.encode()) & 0xffffffff, '08x')
 
+def normalize_query_param_keys(param_keys):
+    """
+    Return a sorted list of stable query parameter names
+    suitable for key generation.
+    """
+    return sorted(
+        k for k in param_keys
+        if k not in VOLATILE_QUERY_PARAMS
+    )
+
 def generate_map_key(http_method: str,
                      path: str,
                      query_params: Iterable[str],
                      origin_header: str,
                      sequence_number: int = None) -> str:
+    """
+    Generate a stable key for a request.
+
+    Currently we:
+      - Normalize query parameter names by dropping volatile params
+        (tracking / analytics like _gl, _ga, etc.).
+      - Then use the remaining parameter names as part of the key.
+
+    Possible future improvement:
+      - Implement a fallback strategy that first tries a key with the full set
+        of params and, if not found, retries with volatile params stripped or
+        even with only method+path. This would make playback more tolerant of
+        extra / missing query parameters.
+    """
     if not (origin_header.startswith(
         ("http://", "https://")) or origin_header == "no_origin"):
         raise ValueError(
             "origin_header must start with 'http://' or 'https://'," +
             f" or be 'no_origin'. Value was {origin_header}")
 
-    query_params_str = [str(param) for param in query_params]
+    stable_query_params = normalize_query_param_keys(query_params)
+    query_params_str = [str(param) for param in stable_query_params]
     query_param_hash = hash_crc32('&'.join(query_params_str))
     origin_hash = hash_crc32(origin_header)
     base_key = f"{http_method}|{path}|{query_param_hash}|{origin_hash}"
