@@ -111,6 +111,12 @@ def main():
         action='store_true',
         help='Export a standalone server that serves the mock website.')
 
+    parser.add_argument(
+        '--dev',
+        action='store_true',
+        help='Enable development mode (may alter behavior or use development resources).')
+
+
     args = parser.parse_args()
 
     if args.capture:
@@ -131,10 +137,11 @@ def main():
         delete_processed_files()
         delete_docker_export()
     elif args.playback:
-        ensure_chrome_not_running()
+        if not is_docker():
+            ensure_chrome_not_running()
         playback(ptracker)
     elif args.export:
-        export()
+        export(dev=args.dev)
     else:
         parser.print_help()
 
@@ -353,7 +360,7 @@ def start_proxy_server(output: Queue, binding: str, proxy_port: int, playback_po
     loop.run_until_complete(run_proxy())
     loop.close()
 
-def export():
+def export(dev: bool = False):
     re_run_as_sudo()
 
     playback_storage_path = get_playback_storage_path()
@@ -371,6 +378,7 @@ def export():
         print(f"Error durring export: {e}")
 
     pkg_name = get_pkg_name()
+    branch = "dev" if dev else "main"
     dockerfile_content = f"""
     FROM python:3.12-slim
 
@@ -386,7 +394,7 @@ def export():
 
     RUN tar -xzvf /app/playback/{playback_tar} -C /app/playback
 
-    RUN pip install git+https://github.com/chrisg123/{pkg_name}.git
+    RUN pip install git+https://github.com/chrisg123/{pkg_name}.git@{branch}
 
     EXPOSE 8080
 
