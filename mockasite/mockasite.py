@@ -384,7 +384,7 @@ def export(dev: bool = False):
 
     ENV {pkg_name.upper()}_ENV=DOCKER
 
-    WORKDIR app
+    WORKDIR /app
 
     RUN mkdir -p /app/playback
 
@@ -579,7 +579,10 @@ def process_capture():
                 )
 
             if mapKey in url_to_folder_map:
-                meta_path, body_path = url_to_folder_map[mapKey]
+                rel_meta_path, rel_body_path = url_to_folder_map[mapKey]
+
+                meta_path = os.path.join(base_dir, rel_meta_path)
+                body_path = os.path.join(base_dir, rel_body_path)
 
                 existing_meta = None
                 with open(meta_path, 'r', encoding='utf-8') as meta_file:
@@ -630,6 +633,9 @@ def process_capture():
                 with open(meta_path, 'w', encoding='utf-8') as meta_file:
                     json.dump(response_data, meta_file, indent=4)
 
+                rel_meta_path = os.path.relpath(meta_path, base_dir)
+                rel_body_path = os.path.relpath(body_path, base_dir)
+
                 if flow.response.content is not None:
                     with open(body_path, 'wb') as body_file:
                         body_file.write(flow.response.content)
@@ -637,7 +643,7 @@ def process_capture():
                     with open(body_path, 'wb') as body_file:
                         pass # Creates empty file
 
-                url_to_folder_map[mapKey] = [meta_path, body_path]
+                url_to_folder_map[mapKey] = [rel_meta_path, rel_body_path]
 
     with open(url_to_folder_map_file, 'w', encoding='utf-8') as map_file:
         json.dump(url_to_folder_map, map_file, indent=4)

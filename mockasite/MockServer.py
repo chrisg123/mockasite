@@ -21,8 +21,31 @@ class MockServer:
 
         self.request_count = defaultdict(int)
         self.url_to_folder_map_file = url_to_folder_map_file
+
+        self.base_dir = self.url_to_folder_map_file.parent
+
         with open(self.url_to_folder_map_file, 'r', encoding='utf-8') as f:
-            self.url_to_folder_map = json.load(f)
+            raw_map = json.load(f)
+
+
+        self.url_to_folder_map = {}
+
+        for key, value in raw_map.items():
+            if value is None:
+                self.url_to_folder_map[key] = None
+                continue
+            meta, body = value
+
+            meta_path = Path(meta)
+            body_path = Path(body)
+
+            if not meta_path.is_absolute():
+                meta_path = self.base_dir / meta_path
+
+            if not body_path.is_absolute():
+                body_path = self.base_dir / body_path
+
+            self.url_to_folder_map[key] = [str(meta_path), str(body_path)]
 
         self.ignore_headers = {'content-encoding', 'content-length'}
 
