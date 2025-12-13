@@ -340,10 +340,16 @@ class Addon:
         flow.request.port = self.port
         flow.request.scheme = "http"
 
+def get_mitm_confdir_runtime() -> Path:
+    if is_docker():
+        return Path("/app") / "mitmproxy-conf"
+    return Path.home() / f".{get_pkg_name()}" / "certificates"
+
 def start_proxy_server(output: Queue, binding: str, proxy_port: int, playback_port: int):
 
     async def run_proxy():
-        options = Options(listen_host=binding, listen_port=proxy_port)
+        confdir = str(get_mitm_confdir_runtime())
+        options = Options(listen_host=binding, listen_port=proxy_port, confdir=confdir)
         m = DumpMaster(options, with_termlog=False, with_dumper=False)
         m.addons.add(Addon(playback_port))
 
@@ -367,6 +373,17 @@ def export(dev: bool = False):
     playback_tar = "playback.tar.gz"
     image_name = f"{get_pkg_name()}_export"
     image_tar = f"{image_name}.tar"
+
+    certdir = Path.home() / f".{get_pkg_name()}" / "certificates"
+    ca_src = certdir / "mockasiteCA.pem"
+    ca_dest = Path("mitmproxy-ca.pem")
+
+    if not ca_src.exists():
+        print(f"ERROR: {ca_src} not found. Run generate_cert first.")
+        return
+
+    subprocess.run(["cp", str(ca_src), str(ca_dest)], check=True)
+
     try:
         subprocess.run(["rm", "-f", playback_tar], check=True)
         subprocess.run([
@@ -393,6 +410,8 @@ def export(dev: bool = False):
     COPY {playback_tar} /app/playback/{playback_tar}
 
     RUN tar -xzvf /app/playback/{playback_tar} -C /app/playback
+
+    COPY mitmproxy-ca.pem /app/mitmproxy-conf/mitmproxy-ca.pem
 
     RUN pip install git+https://github.com/chrisg123/{pkg_name}.git@{branch}
 
