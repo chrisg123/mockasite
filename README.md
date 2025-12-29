@@ -5,7 +5,8 @@
 ## Description
 Record and serve back a mock version of a website. It is particularly useful to
 work with a mock when using website automation tools like
-[Selenium](https://www.selenium.dev). The mock helps to avoid unnecessary
+[Selenium](https://www.selenium.dev) or
+[Playwright](https://playwright.dev). The mock helps to avoid unnecessary
 interactions with a website's actual servers during development and testing
 phases.
 
