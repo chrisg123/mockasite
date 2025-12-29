@@ -1,22 +1,20 @@
 import json
 import os
 from collections import defaultdict
-from flask import Flask, request, Response
 from pathlib import Path
+from flask import Flask, request, Response, redirect
 from flask_cors import CORS
-from queue import Queue
-import logging
-from logging.handlers import QueueHandler
-from .utils import (get_pkg_name, generate_map_key, split_map_key, find_free_port)
+from .utils import (get_pkg_name, generate_map_key, split_map_key)
 
 class MockServer:
     RED = '\033[91m'
     GREEN = '\033[92m'
     RESET = '\033[0m'
 
-    def __init__(self, url_to_folder_map_file: Path, port: int):
+    def __init__(self, url_to_folder_map_file: Path, port: int, entry_url: str):
         self.app = Flask(__name__)
         self.port = port
+        self.entry_url = entry_url
         CORS(self.app)
 
         self.request_count = defaultdict(int)
@@ -49,10 +47,14 @@ class MockServer:
 
         self.ignore_headers = {'content-encoding', 'content-length'}
 
-        self.app.route('/', defaults={'path': ''})(self.mock_server)
+        self.app.add_url_rule('/', view_func=self.root_redirect, methods=['GET'])
+
         self.app.route('/<path:path>',
                        methods=['GET', 'POST', 'PUT', 'DELETE',
                                 'OPTIONS'])(self.mock_server)
+
+    def root_redirect(self):
+        return redirect(self.entry_url, code=302)
 
     def mock_server(self, path):
         http_method = request.method
@@ -109,6 +111,7 @@ class MockServer:
             "message": "No recorded response found for request.",
             "http_method": http_method,
             "path": path,
+            "entry_url": self.entry_url,
             "origin_header": origin_header,
             "query_params": list(query_params),
             "query_param_hash": query_param_hash,

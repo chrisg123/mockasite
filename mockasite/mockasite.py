@@ -264,8 +264,8 @@ def review_processed():
     except subprocess.CalledProcessError as e:
         print(f"{e}")
 
-def run_playback_server(output: Queue, url_to_folder_map_file: Path, port: int):
-    server = MockServer(url_to_folder_map_file, port)
+def run_playback_server(output: Queue, url_to_folder_map_file: Path, port: int, entry_url: str):
+    server = MockServer(url_to_folder_map_file, port, entry_url)
     try:
         server.run()
     except Exception as e:
@@ -296,9 +296,6 @@ def playback(ptracker: ProcessTracker):
     binding = '0.0.0.0' # Any
     output = Queue()
 
-    ptracker.start(run_playback_server, output, url_to_folder_map_file, playback_port)
-    ptracker.start(start_proxy_server, output, binding, proxy_port, playback_port)
-
     playback_metadata_path = get_playback_storage_path(
     ) / "playback_metadata.json"
     try:
@@ -308,6 +305,9 @@ def playback(ptracker: ProcessTracker):
     except (FileNotFoundError, ValueError) as e:
         print(f"Error loading playback metadata: {e}")
         return
+
+    ptracker.start(run_playback_server, output, url_to_folder_map_file, playback_port, url)
+    ptracker.start(start_proxy_server, output, binding, proxy_port, playback_port)
 
     while not is_port_open("localhost", proxy_port):
         time.sleep(1)
