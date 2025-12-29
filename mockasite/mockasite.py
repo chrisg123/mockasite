@@ -450,10 +450,13 @@ def find_chrome_executable() -> str:
     raise FileNotFoundError("Google Chrome not found on system.")
 
 def launch_mitmdump(port) -> subprocess.Popen:
-    # pkg_name = get_pkg_name()
-    # cert_path = Path.home(
-    # ) / f".{pkg_name}" / "certificates" / f"{pkg_name}CA.pem"
-    mitm_cmd = ['mitmdump', '-p', str(port), '-w', get_last_capture_file()]
+    confdir = str(get_mitm_confdir_runtime())
+    mitm_cmd = [
+        'mitmdump',
+        '-p', str(port),
+        '-w', get_last_capture_file(),
+        '--set', f'confdir={confdir}'
+    ]
     return subprocess.Popen(mitm_cmd,
                             stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL)
